@@ -11,7 +11,6 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icone-180.png">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="config.js"></script>
 <title>Cahier du Labo</title>
@@ -371,9 +370,6 @@
     try {
       if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId && window.firebase) {
         firebase.initializeApp(window.FIREBASE_CONFIG);
-        /* session anonyme : invisible pour la pâtissière, mais la base
-           n'accepte que les appareils passés par l'appli */
-        await firebase.auth().signInAnonymously();
         db = firebase.firestore();
       }
     } catch (e) { db = null; }
