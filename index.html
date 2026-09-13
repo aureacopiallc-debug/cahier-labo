@@ -206,6 +206,15 @@
   .dlg-acts .primary { flex: 1; }
   .ghost { background: none; border: 1px solid var(--line-strong); color: var(--ink-soft); font-family: var(--f-body); font-weight: 600; font-size: 14.5px; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
 
+  .periode { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+  tr.sem { cursor: pointer; }
+  tr.sem:hover td { background: var(--surface-2); }
+  tr.sem.is-open td { background: var(--surface-2); font-weight: 700; }
+  .ecart-plus { color: var(--warn); font-weight: 600; }
+  .ecart-moins { color: var(--ok); font-weight: 600; }
+  tfoot td { font-weight: 700; border-top: 2px solid var(--line-strong); background: var(--surface); }
+  .moy { color: var(--ink-soft); }
+
   .foot { margin-top: 26px; font-size: 12.5px; color: var(--ink-soft); }
   [hidden] { display: none !important; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -248,6 +257,7 @@
     <button class="tab" role="tab" id="tab-stock" aria-selected="false" aria-controls="v-stock">Stock</button>
     <button class="tab" role="tab" id="tab-semaine" aria-selected="false" aria-controls="v-semaine">Semaine</button>
     <button class="tab" role="tab" id="tab-reglages" aria-selected="false" aria-controls="v-reglages" hidden>Références</button>
+    <button class="tab" role="tab" id="tab-histo" aria-selected="false" aria-controls="v-histo">Bilan</button>
     <button class="tab" role="tab" id="tab-equipe" aria-selected="false" aria-controls="v-equipe" hidden>Équipe</button>
   </div>
 
@@ -283,6 +293,30 @@
       <button class="primary" id="addBtn">Ajouter</button>
     </div>
     <p class="foot">Le seuil est la quantité en dessous de laquelle la référence remonte dans « À faire ». Une référence achetée passe dans « à commander » au lieu de « à produire », et sa saisie d'entrée s'appelle « Livré ». « Lier à une matière » ne sert que pour un produit fabriqué à partir d'un demi-produit acheté, comme le baba : imbiber douze babas retire alors douze babas secs de la réserve, sans double saisie. Supprimer une référence conserve l'historique des jours passés.</p>
+  </section>
+
+  <section id="v-histo" role="tabpanel" aria-labelledby="tab-histo" hidden>
+    <div class="periode">
+      <label class="lbl" for="anneeSel">Année</label>
+      <select id="anneeSel" aria-label="Année"></select>
+      <button class="ghost" id="recharger">Actualiser</button>
+    </div>
+
+    <div class="block">
+      <h2 class="sec">Par référence</h2>
+      <p class="hint" id="histoResume">Chargement de l'historique…</p>
+      <div class="scroll"><table id="tblRef"></table></div>
+    </div>
+
+    <div class="block">
+      <h2 class="sec">Semaine par semaine</h2>
+      <p class="hint">Cliquez sur une semaine pour voir le détail par référence.</p>
+      <div class="scroll"><table id="tblSem"></table></div>
+    </div>
+
+    <div class="block" id="detailSem" hidden></div>
+
+    <p class="foot">Les moyennes se calculent sur les semaines où il s'est passé quelque chose, pas sur les cinquante-deux de l'année : une référence lancée en octobre n'est pas pénalisée par les mois où elle n'existait pas. L'écart compare ce qui est entré en stock à ce qui en est sorti — un écart durablement positif signale de la surproduction.</p>
   </section>
 
   <section id="v-equipe" role="tabpanel" aria-labelledby="tab-equipe" hidden>
@@ -758,8 +792,200 @@
     }).join("");
   }
 
+  /* ---------- bilan annuel ---------- */
+  /* l'historique complet ne se charge qu'à l'ouverture de l'onglet :
+     inutile de tirer une année de saisies pour afficher le stock du jour */
+  var histo = { charge: false, encours: false, jours: {}, semaineOuverte: null };
+
+  function semaineISO(d) {
+    var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var jour = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - jour);
+    var an = t.getUTCFullYear();
+    var debut = new Date(Date.UTC(an, 0, 1));
+    var no = Math.ceil((((t - debut) / 86400000) + 1) / 7);
+    return { an: an, no: no, cle: an + "-S" + String(no).padStart(2, "0") };
+  }
+
+  function lundiDe(an, no) {
+    var d = new Date(Date.UTC(an, 0, 4));
+    var jour = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() - jour + 1 + (no - 1) * 7);
+    return d;
+  }
+
+  var FMT_JOUR = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
+  function libelleSemaine(an, no) {
+    var l = lundiDe(an, no), d = new Date(l); d.setUTCDate(d.getUTCDate() + 6);
+    return FMT_JOUR.format(l).replace(".", "") + " – " + FMT_JOUR.format(d).replace(".", "");
+  }
+
+  async function chargerHisto(force) {
+    if (histo.encours) return;
+    if (histo.charge && !force) { rendreHisto(); return; }
+    histo.encours = true;
+    document.getElementById("histoResume").textContent = "Chargement de l'historique…";
+
+    if (state.local) {
+      histo.jours = state.jours;
+    } else {
+      try {
+        var snap = await state.db.collection("jours").orderBy("d", "desc").limit(500).get();
+        var j = {};
+        snap.docs.forEach(function (d) { j[d.id] = (d.data() || {}).e || {}; });
+        histo.jours = j;
+      } catch (e) {
+        histo.encours = false;
+        document.getElementById("histoResume").textContent = "L'historique n'a pas pu être chargé. Vérifiez la connexion.";
+        return;
+      }
+    }
+    histo.charge = true; histo.encours = false;
+    rendreHisto();
+  }
+
+  function agreger(an) {
+    var parRef = {}, parSem = {}, semaines = {};
+    state.produits.forEach(function (p) { parRef[p.id] = { e: 0, s: 0, sem: {} }; });
+
+    Object.keys(histo.jours).forEach(function (date) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date); if (!m) return;
+      var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      var w = semaineISO(d);
+      if (an && w.an !== an) return;
+      semaines[w.cle] = { an: w.an, no: w.no };
+      if (!parSem[w.cle]) parSem[w.cle] = { e: 0, s: 0, refs: {} };
+
+      var lignes = histo.jours[date] || {};
+      Object.keys(lignes).forEach(function (k) {
+        var x = lignes[k]; if (!x || !(x.p in parRef)) return;
+        var q = Number(x.q) || 0;
+        if (x.t === "p") {
+          parRef[x.p].e += q; parSem[w.cle].e += q;
+          parRef[x.p].sem[w.cle] = true;
+          if (!parSem[w.cle].refs[x.p]) parSem[w.cle].refs[x.p] = { e: 0, s: 0 };
+          parSem[w.cle].refs[x.p].e += q;
+        } else if (x.t === "s") {
+          parRef[x.p].s += q; parSem[w.cle].s += q;
+          parRef[x.p].sem[w.cle] = true;
+          if (!parSem[w.cle].refs[x.p]) parSem[w.cle].refs[x.p] = { e: 0, s: 0 };
+          parSem[w.cle].refs[x.p].s += q;
+        }
+      });
+    });
+    return { parRef: parRef, parSem: parSem, semaines: semaines };
+  }
+
+  function anneesDisponibles() {
+    var ans = {};
+    Object.keys(histo.jours).forEach(function (d) {
+      var m = /^(\d{4})/.exec(d); if (m) ans[Number(m[1])] = true;
+    });
+    var liste = Object.keys(ans).map(Number).sort(function (a, b) { return b - a; });
+    return liste.length ? liste : [new Date().getFullYear()];
+  }
+
+  function rendreHisto() {
+    var sel = document.getElementById("anneeSel");
+    var ans = anneesDisponibles();
+    if (sel.options.length !== ans.length) {
+      sel.innerHTML = ans.map(function (a) { return '<option value="' + a + '">' + a + "</option>"; }).join("");
+    }
+    var an = Number(sel.value) || ans[0];
+    sel.value = String(an);
+
+    var ag = agreger(an);
+    var cles = Object.keys(ag.parSem).sort().reverse();
+
+    document.getElementById("histoResume").textContent = cles.length
+      ? cles.length + (cles.length > 1 ? " semaines enregistrées en " : " semaine enregistrée en ") + an
+      : "Aucune saisie en " + an + ".";
+
+    /* --- synthèse par référence --- */
+    var lignes = state.produits.map(function (p) {
+      var r = ag.parRef[p.id] || { e: 0, s: 0, sem: {} };
+      var nb = Object.keys(r.sem).length;
+      return { p: p, e: r.e, s: r.s, nb: nb, moy: nb ? Math.round(r.s / nb * 10) / 10 : 0 };
+    }).filter(function (x) { return x.e || x.s; })
+      .sort(function (a, b) { return b.s - a.s; });
+
+    var tr = document.getElementById("tblRef");
+    if (!lignes.length) { tr.innerHTML = ""; }
+    else {
+      var totE = 0, totS = 0;
+      lignes.forEach(function (x) { totE += x.e; totS += x.s; });
+      tr.innerHTML =
+        "<thead><tr><th>Référence</th><th>Entré</th><th>Sorti</th><th>Écart</th>" +
+        "<th>Moyenne</th><th>Semaines</th></tr></thead><tbody>" +
+        lignes.map(function (x) {
+          var ec = x.e - x.s;
+          return "<tr><td>" + esc(x.p.nom) + "</td>" +
+            '<td class="cell-p">' + x.e + "</td>" +
+            '<td class="cell-s">' + x.s + "</td>" +
+            '<td class="' + (ec > 0 ? "ecart-plus" : ec < 0 ? "ecart-moins" : "cell-0") + '">' +
+            (ec > 0 ? "+" : "") + ec + "</td>" +
+            '<td class="moy">' + String(x.moy).replace(".", ",") + "/sem</td>" +
+            '<td class="moy">' + x.nb + "</td></tr>";
+        }).join("") + "</tbody><tfoot><tr><td>Total</td><td>" + totE + "</td><td>" + totS +
+        "</td><td>" + (totE - totS > 0 ? "+" : "") + (totE - totS) + "</td><td></td><td></td></tr></tfoot>";
+    }
+
+    /* --- synthèse semaine par semaine --- */
+    var ts = document.getElementById("tblSem");
+    if (!cles.length) { ts.innerHTML = ""; document.getElementById("detailSem").hidden = true; return; }
+    ts.innerHTML =
+      "<thead><tr><th>Semaine</th><th>Période</th><th>Entré</th><th>Sorti</th><th>Écart</th></tr></thead><tbody>" +
+      cles.map(function (c) {
+        var w = ag.semaines[c], v = ag.parSem[c], ec = v.e - v.s;
+        return '<tr class="sem' + (histo.semaineOuverte === c ? " is-open" : "") + '" data-sem="' + c + '">' +
+          "<td>S" + String(w.no).padStart(2, "0") + "</td>" +
+          '<td class="moy">' + libelleSemaine(w.an, w.no) + "</td>" +
+          '<td class="cell-p">' + v.e + "</td>" +
+          '<td class="cell-s">' + v.s + "</td>" +
+          '<td class="' + (ec > 0 ? "ecart-plus" : ec < 0 ? "ecart-moins" : "cell-0") + '">' +
+          (ec > 0 ? "+" : "") + ec + "</td></tr>";
+      }).join("") + "</tbody>";
+
+    rendreDetailSemaine(ag);
+  }
+
+  function rendreDetailSemaine(ag) {
+    var box = document.getElementById("detailSem");
+    var c = histo.semaineOuverte;
+    if (!c || !ag.parSem[c]) { box.hidden = true; box.innerHTML = ""; return; }
+    var w = ag.semaines[c], v = ag.parSem[c];
+    var lignes = Object.keys(v.refs).map(function (pid) {
+      var p = state.produits.find(function (x) { return x.id === pid; });
+      return p ? { nom: p.nom, e: v.refs[pid].e, s: v.refs[pid].s } : null;
+    }).filter(Boolean).sort(function (a, b) { return b.s - a.s; });
+
+    box.hidden = false;
+    box.innerHTML = '<h2 class="sec">Semaine ' + String(w.no).padStart(2, "0") + " · " +
+      libelleSemaine(w.an, w.no) + '</h2><p class="hint">Détail par référence</p>' +
+      '<div class="scroll"><table><thead><tr><th>Référence</th><th>Entré</th><th>Sorti</th><th>Écart</th></tr></thead><tbody>' +
+      lignes.map(function (x) {
+        var ec = x.e - x.s;
+        return "<tr><td>" + esc(x.nom) + '</td><td class="cell-p">' + x.e +
+          '</td><td class="cell-s">' + x.s + '</td><td class="' +
+          (ec > 0 ? "ecart-plus" : ec < 0 ? "ecart-moins" : "cell-0") + '">' +
+          (ec > 0 ? "+" : "") + ec + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+
+  document.getElementById("anneeSel").addEventListener("change", function () {
+    histo.semaineOuverte = null; rendreHisto();
+  });
+  document.getElementById("recharger").addEventListener("click", function () { chargerHisto(true); });
+  document.getElementById("tblSem").addEventListener("click", function (ev) {
+    var tr = ev.target.closest("tr[data-sem]"); if (!tr) return;
+    histo.semaineOuverte = histo.semaineOuverte === tr.dataset.sem ? null : tr.dataset.sem;
+    rendreHisto();
+    var d = document.getElementById("detailSem");
+    if (!d.hidden) d.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+
   /* ---------- interactions ---------- */
-  var onglets = [["tab-faire", "v-faire"], ["tab-stock", "v-stock"], ["tab-semaine", "v-semaine"], ["tab-reglages", "v-reglages"], ["tab-equipe", "v-equipe"]];
+  var onglets = [["tab-faire", "v-faire"], ["tab-stock", "v-stock"], ["tab-semaine", "v-semaine"], ["tab-histo", "v-histo"], ["tab-reglages", "v-reglages"], ["tab-equipe", "v-equipe"]];
   onglets.forEach(function (o) {
     document.getElementById(o[0]).addEventListener("click", function () {
       onglets.forEach(function (x) {
@@ -767,6 +993,7 @@
         document.getElementById(x[0]).setAttribute("aria-selected", sel ? "true" : "false");
         document.getElementById(x[1]).hidden = !sel;
       });
+      if (o[0] === "tab-histo") chargerHisto(false);
     });
   });
 
