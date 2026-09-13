@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cahier du Labo">
+<meta name="theme-color" content="#F1F5F6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icone-180.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+<title>Cahier du Labo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Karla:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --ground: #F1F5F6;
+    --surface: #FFFFFF;
+    --surface-2: #E8EEF0;
+    --ink: #14202A;
+    --ink-soft: #5C6F7C;
+    --line: #D7E0E4;
+    --line-strong: #B9C7CD;
+    --ok: #3F7D58;
+    --ok-bg: #E4F0E8;
+    --warn: #B0690C;
+    --warn-bg: #FAEDD8;
+    --alert: #B4234E;
+    --alert-bg: #FBE5EB;
+    --shadow: 0 1px 2px rgba(20, 32, 42, .06), 0 8px 24px -12px rgba(20, 32, 42, .18);
+    --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "Karla", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101820; --surface: #18232C; --surface-2: #202D37;
+      --ink: #E7EFF3; --ink-soft: #93A6B1; --line: #2A3842; --line-strong: #3C4E5A;
+      --ok: #77BC92; --ok-bg: #1D3227; --warn: #E0A64E; --warn-bg: #372913;
+      --alert: #F0839F; --alert-bg: #3A1A25;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #101820; --surface: #18232C; --surface-2: #202D37;
+    --ink: #E7EFF3; --ink-soft: #93A6B1; --line: #2A3842; --line-strong: #3C4E5A;
+    --ok: #77BC92; --ok-bg: #1D3227; --warn: #E0A64E; --warn-bg: #372913;
+    --alert: #F0839F; --alert-bg: #3A1A25;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.45; -webkit-text-size-adjust: 100%; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  /* ---------- écran d'entrée ---------- */
+  .porte { max-width: 420px; margin: 0 auto; padding: 44px 16px 40px; }
+  .porte .brand { text-align: center; margin-bottom: 6px; }
+  .porte .intro { text-align: center; color: var(--ink-soft); font-size: 14.5px; margin: 0 0 28px; }
+  .gens { display: flex; flex-direction: column; gap: 9px; }
+  .gens button {
+    width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 15px 17px; cursor: pointer; font-family: var(--f-display);
+    font-weight: 600; font-size: 17.5px; color: var(--ink); letter-spacing: -.01em;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .gens button:hover { border-color: var(--line-strong); background: var(--surface-2); }
+  .gens button:focus-visible { outline: 2px solid var(--alert); outline-offset: 2px; }
+  .gens .role { font-family: var(--f-body); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); }
+  .code-zone { margin-top: 26px; }
+  .code-zone.hidden { display: none; }
+  .code-in {
+    width: 100%; font-family: var(--f-display); font-weight: 800; font-size: 38px; text-align: center;
+    letter-spacing: .22em; padding: 12px; border-radius: 12px; border: 1.5px solid var(--line-strong);
+    background: var(--surface); color: var(--ink);
+  }
+  .code-in:focus-visible { outline: 2px solid var(--alert); outline-offset: 1px; }
+  .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .pad button {
+    font-family: var(--f-display); font-weight: 700; font-size: 22px; padding: 15px 0; border-radius: 11px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .pad button:hover { background: var(--surface-2); }
+  .pad button:focus-visible { outline: 2px solid var(--alert); outline-offset: 1px; }
+  .pad .wide { font-size: 15px; font-family: var(--f-body); font-weight: 600; color: var(--ink-soft); }
+  .err { color: var(--alert); font-size: 14px; font-weight: 600; text-align: center; margin: 14px 0 0; min-height: 20px; }
+
+  /* ---------- en-tête ---------- */
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .brand { font-family: var(--f-display); font-weight: 800; font-size: 27px; letter-spacing: -.02em; margin: 0; }
+  .today { font-size: 14px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); margin: 6px 0 18px; }
+  .who { display: flex; align-items: center; gap: 6px; }
+  .who b { color: var(--ink); font-weight: 700; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: 0 0 auto; }
+  .dot.off { background: var(--warn); }
+  .sortir { border: 0; background: none; color: var(--ink-soft); text-decoration: underline; cursor: pointer; font-family: var(--f-body); font-size: 12px; padding: 2px; }
+  .sortir:hover { color: var(--alert); }
+
+  .tabs { display: flex; gap: 3px; background: var(--surface-2); padding: 4px; border-radius: 11px; margin-bottom: 22px; }
+  .tab { flex: 1; border: 0; background: none; font-family: var(--f-body); font-weight: 600; font-size: 13.5px; color: var(--ink-soft); padding: 9px 4px; border-radius: 8px; cursor: pointer; transition: background .15s, color .15s; white-space: nowrap; }
+  .tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(20,32,42,.1); }
+  .tab:focus-visible { outline: 2px solid var(--alert); outline-offset: 1px; }
+  .tab .pill { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 5px; border-radius: 9px; background: var(--alert); color: #fff; font-size: 11px; font-weight: 700; line-height: 17px; vertical-align: 1px; }
+
+  h2.sec { font-family: var(--f-display); font-size: 15px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 3px; }
+  p.hint { margin: 0 0 12px; color: var(--ink-soft); font-size: 13.5px; }
+  .block { margin-bottom: 30px; }
+
+  .task { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line-strong); border-radius: 4px 12px 12px 4px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: center; margin-bottom: 9px; }
+  .task.urgent { border-left-color: var(--alert); }
+  .task.bientot { border-left-color: var(--warn); }
+  .task .nom { font-family: var(--f-display); font-weight: 600; font-size: 16.5px; letter-spacing: -.01em; }
+  .task .why { font-size: 13px; color: var(--ink-soft); margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .task .qte { font-family: var(--f-display); font-weight: 800; font-size: 27px; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; text-align: right; }
+  .task .qte small { display: block; font-family: var(--f-body); font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; margin-top: 4px; color: var(--ink-soft); }
+  .task.urgent .qte { color: var(--alert); }
+  .task.bientot .qte { color: var(--warn); }
+  .task .go { grid-column: 1 / -1; }
+  .done { background: var(--ok-bg); border: 1px solid var(--ok); color: var(--ok); width: 100%; font-family: var(--f-body); font-weight: 700; font-size: 14px; padding: 10px; border-radius: 8px; cursor: pointer; }
+  .done:hover { filter: brightness(.97); }
+  .done:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+
+  .calme { border: 1px solid var(--line); border-left: 4px solid var(--ok); background: var(--surface); border-radius: 4px 12px 12px 4px; padding: 16px 18px; }
+  .calme h2 { font-family: var(--f-display); font-size: 16px; font-weight: 700; margin: 0 0 2px; }
+  .calme p { margin: 0; color: var(--ink-soft); font-size: 14.5px; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .row { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; align-items: center; }
+  .row .nom { font-family: var(--f-display); font-weight: 600; font-size: 16.5px; letter-spacing: -.01em; }
+  .row .meta { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-soft); margin-left: 7px; vertical-align: 2px; }
+  .stock { text-align: right; font-family: var(--f-display); font-weight: 800; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+  .stock small { display: block; font-family: var(--f-body); font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; margin-top: 4px; }
+  .s-ok { color: var(--ok); } .s-warn { color: var(--warn); } .s-alert { color: var(--alert); }
+  .gauge { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+  .gauge i { display: block; height: 100%; border-radius: 2px; background: currentColor; }
+  .acts { grid-column: 1 / -1; display: flex; gap: 8px; }
+  .btn { flex: 1; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font-family: var(--f-body); font-weight: 600; font-size: 14px; padding: 9px 8px; border-radius: 8px; cursor: pointer; transition: background .12s, border-color .12s; }
+  .btn:hover { background: var(--surface-2); }
+  .btn:focus-visible { outline: 2px solid var(--alert); outline-offset: 1px; }
+  .btn-p { color: var(--ok); border-color: var(--ok); }
+  .btn-p:hover { background: var(--ok-bg); }
+  .btn-s { color: var(--alert); border-color: var(--alert); }
+  .btn-s:hover { background: var(--alert-bg); }
+  .btn-q { flex: 0 0 auto; padding: 9px 12px; color: var(--ink-soft); }
+
+  /* ---------- journal ---------- */
+  .journal { margin-top: 30px; }
+  .jline { display: flex; gap: 10px; align-items: baseline; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .jline:last-child { border-bottom: 0; }
+  .jline .h { font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: 13px; flex: 0 0 42px; }
+  .jline .q { font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 46px; text-align: right; }
+  .jline .q.plus { color: var(--ok); }
+  .jline .q.moins { color: var(--alert); }
+  .jline .q.corr { color: var(--ink-soft); }
+  .jline .n { flex: 1 1 auto; min-width: 0; }
+  .jline .u { color: var(--ink-soft); font-size: 12.5px; flex: 0 0 auto; }
+
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 9px 11px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); font-weight: 600; }
+  thead th { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td { font-variant-numeric: tabular-nums; }
+  .cell-p { color: var(--ok); font-weight: 600; }
+  .cell-s { color: var(--alert); }
+  .cell-0 { color: var(--line-strong); }
+
+  .setrow { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+  .setrow input[type="text"] { flex: 1 1 140px; min-width: 0; }
+  input[type="text"], input[type="number"], select { font-family: var(--f-body); font-size: 15px; color: var(--ink); background: var(--ground); border: 1px solid var(--line-strong); border-radius: 7px; padding: 8px 10px; }
+  input[type="number"] { width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+  select { font-size: 13.5px; padding: 8px 6px; }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--alert); outline-offset: 0; }
+  .lbl { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+  .mono { font-family: var(--f-display); font-weight: 700; font-size: 17px; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+  .lier { border: 0; background: none; color: var(--ink-soft); cursor: pointer; font-family: var(--f-body); font-size: 12.5px; text-decoration: underline; padding: 4px 2px; }
+  .lier:hover { color: var(--ink); }
+  .lier:focus-visible { outline: 2px solid var(--alert); outline-offset: 1px; border-radius: 4px; }
+  .del { border: 0; background: none; color: var(--ink-soft); cursor: pointer; font-size: 19px; line-height: 1; padding: 4px 6px; border-radius: 6px; }
+  .del:hover { color: var(--alert); background: var(--alert-bg); }
+  .add { display: flex; gap: 9px; margin-top: 14px; flex-wrap: wrap; }
+  .add input[type="text"] { flex: 1 1 150px; }
+  .primary { background: var(--ink); color: var(--ground); border: 0; font-family: var(--f-body); font-weight: 700; font-size: 14.5px; padding: 10px 18px; border-radius: 8px; cursor: pointer; }
+  .primary:hover { opacity: .88; }
+  .primary:focus-visible { outline: 2px solid var(--alert); outline-offset: 2px; }
+
+  dialog { border: 0; border-radius: 16px; padding: 0; background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px -16px rgba(0,0,0,.4); max-width: 380px; width: calc(100% - 32px); }
+  dialog::backdrop { background: rgba(10, 18, 24, .5); }
+  .dlg { padding: 20px 22px 22px; }
+  .dlg h3 { font-family: var(--f-display); font-size: 19px; font-weight: 700; margin: 0 0 2px; letter-spacing: -.015em; }
+  .dlg .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 16px; }
+  .qty { width: 100%; font-family: var(--f-display); font-weight: 800; font-size: 40px; text-align: center; padding: 8px; letter-spacing: -.02em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 18px; }
+  .chip { border: 1px solid var(--line-strong); background: var(--ground); color: var(--ink); font-family: var(--f-body); font-weight: 600; font-size: 14px; padding: 7px 13px; border-radius: 20px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .chip:hover { background: var(--surface-2); }
+  .chip:focus-visible { outline: 2px solid var(--alert); outline-offset: 1px; }
+  .dlg-acts { display: flex; gap: 9px; }
+  .dlg-acts .primary { flex: 1; }
+  .ghost { background: none; border: 1px solid var(--line-strong); color: var(--ink-soft); font-family: var(--f-body); font-weight: 600; font-size: 14.5px; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+
+  .foot { margin-top: 26px; font-size: 12.5px; color: var(--ink-soft); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (min-width: 560px) {
+    .row { grid-template-columns: 1fr auto auto; }
+    .acts { grid-column: auto; width: 250px; }
+    .gauge { grid-column: 1 / -1; }
+    .task { grid-template-columns: 1fr auto auto; }
+    .task .go { grid-column: auto; width: 150px; }
+  }
+</style>
+
+</head>
+<body>
+<!-- ===================== écran d'entrée ===================== -->
+<div class="porte" id="porte" hidden>
+  <h1 class="brand">Cahier du Labo</h1>
+  <p class="intro" id="porteIntro">Qui travaille ?</p>
+  <div class="gens" id="gens"></div>
+  <div class="code-zone hidden" id="codeZone">
+    <input class="code-in" id="codeIn" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="····" aria-label="Code personnel">
+    <div class="pad" id="pad"></div>
+  </div>
+  <p class="err" id="porteErr" role="status"></p>
+</div>
+
+<!-- ===================== application ===================== -->
+<div class="wrap" id="app" hidden>
+  <div class="top">
+    <h1 class="brand">Cahier du Labo</h1>
+    <div class="today" id="today"></div>
+  </div>
+  <div class="bar">
+    <span class="who"><span class="dot" id="dot"></span><b id="moi">—</b><span id="syncTxt"></span></span>
+    <button class="sortir" id="sortir">Changer de personne</button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-faire" aria-selected="true" aria-controls="v-faire">À faire<span class="pill" id="badge" hidden>0</span></button>
+    <button class="tab" role="tab" id="tab-stock" aria-selected="false" aria-controls="v-stock">Stock</button>
+    <button class="tab" role="tab" id="tab-semaine" aria-selected="false" aria-controls="v-semaine">Semaine</button>
+    <button class="tab" role="tab" id="tab-reglages" aria-selected="false" aria-controls="v-reglages" hidden>Références</button>
+    <button class="tab" role="tab" id="tab-equipe" aria-selected="false" aria-controls="v-equipe" hidden>Équipe</button>
+  </div>
+
+  <section id="v-faire" role="tabpanel" aria-labelledby="tab-faire">
+    <div class="block" id="bProduire"></div>
+    <div class="block" id="bCommander"></div>
+    <p class="foot">La quantité proposée vise à couvrir la journée : on part du seuil, relevé si les ventes des sept derniers jours le dépassent. « C'est fait » enregistre directement la production, inutile de la ressaisir.</p>
+  </section>
+
+  <section id="v-stock" role="tabpanel" aria-labelledby="tab-stock" hidden>
+    <div class="list" id="list"></div>
+    <div class="journal">
+      <h2 class="sec">Saisies du jour</h2>
+      <p class="hint" id="jvide">Rien d'enregistré depuis ce matin.</p>
+      <div id="jlist"></div>
+    </div>
+  </section>
+
+  <section id="v-semaine" role="tabpanel" aria-labelledby="tab-semaine" hidden>
+    <div class="scroll"><table id="tbl"></table></div>
+    <p class="foot">Vert : entré en stock dans la journée. Rose : sorti de la vitrine. Gris : correction de stock.</p>
+  </section>
+
+  <section id="v-reglages" role="tabpanel" aria-labelledby="tab-reglages" hidden>
+    <div class="list" id="sets"></div>
+    <div class="add">
+      <input type="text" id="newName" placeholder="Nouvelle référence" aria-label="Nom de la référence">
+      <select id="newType" aria-label="Type">
+        <option value="p">Produite au labo</option>
+        <option value="a">Achetée</option>
+      </select>
+      <input type="number" id="newSeuil" value="6" min="0" aria-label="Seuil d'alerte">
+      <button class="primary" id="addBtn">Ajouter</button>
+    </div>
+    <p class="foot">Le seuil est la quantité en dessous de laquelle la référence remonte dans « À faire ». Une référence achetée passe dans « à commander » au lieu de « à produire », et sa saisie d'entrée s'appelle « Livré ». « Lier à une matière » ne sert que pour un produit fabriqué à partir d'un demi-produit acheté, comme le baba : imbiber douze babas retire alors douze babas secs de la réserve, sans double saisie. Supprimer une référence conserve l'historique des jours passés.</p>
+  </section>
+
+  <section id="v-equipe" role="tabpanel" aria-labelledby="tab-equipe" hidden>
+    <div class="list" id="gensAdmin"></div>
+    <div class="add">
+      <input type="text" id="newGens" placeholder="Prénom" aria-label="Prénom">
+      <select id="newRole" aria-label="Rôle">
+        <option value="labo">Labo</option>
+        <option value="direction">Direction</option>
+      </select>
+      <button class="primary" id="addGens">Créer l'accès</button>
+    </div>
+    <p class="foot">Chaque personne entre son code à l'ouverture ; ses saisies sont signées de son prénom dans le journal du jour. « Labo » voit les tâches, le stock et la semaine. « Direction » voit tout et gère les références et les accès. Donnez le code de vive voix et changez-le si quelqu'un quitte l'équipe. Ce code sépare les rôles et trace les saisies — il ne protège pas la page elle-même, qui reste réservée aux comptes de la société.</p>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" class="dlg">
+    <h3 id="dlgTitle">—</h3>
+    <p class="sub" id="dlgSub">—</p>
+    <input type="number" class="qty" id="qty" value="0" min="0" step="1" aria-label="Quantité">
+    <div class="chips" id="chips"></div>
+    <div class="dlg-acts">
+      <button type="button" class="ghost" id="dlgCancel">Annuler</button>
+      <button type="button" class="primary" id="dlgOk">Valider</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  var JOURS_CHARGES = 35;
+  var SESSION_H = 14;
+  var state = { produits: [], jours: {}, acces: [], db: null, local: false, moi: null };
+  var dlgCtx = null, portePersonne = null;
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function iso(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function today() { return iso(new Date()); }
+  function slug(s) {
+    return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || uid();
+  }
+  var FMT = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  var FMT_COURT = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" });
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  var LS_P = "labo.produits", LS_J = "labo.jours", LS_A = "labo.acces", LS_S = "labo.session";
+
+  function lsLire() {
+    try {
+      state.produits = JSON.parse(localStorage.getItem(LS_P) || "[]");
+      state.jours = JSON.parse(localStorage.getItem(LS_J) || "{}");
+      state.acces = JSON.parse(localStorage.getItem(LS_A) || "[]");
+    } catch (e) { state.produits = []; state.jours = {}; state.acces = []; }
+  }
+  function lsEcrire() {
+    try {
+      localStorage.setItem(LS_P, JSON.stringify(state.produits));
+      localStorage.setItem(LS_J, JSON.stringify(state.jours));
+      localStorage.setItem(LS_A, JSON.stringify(state.acces));
+    } catch (e) { /* navigation privée */ }
+  }
+  function sessionLire() {
+    try {
+      var s = JSON.parse(localStorage.getItem(LS_S) || "null");
+      if (!s || !s.id || !s.t) return null;
+      if (Date.now() - s.t > SESSION_H * 3600e3) return null;
+      return s;
+    } catch (e) { return null; }
+  }
+  function sessionEcrire(p) {
+    try { localStorage.setItem(LS_S, JSON.stringify({ id: p.id, nom: p.nom, role: p.role, t: Date.now() })); } catch (e) {}
+  }
+  function sessionEffacer() { try { localStorage.removeItem(LS_S); } catch (e) {} }
+
+  function trier(a, b) { return (a.ordre || 0) - (b.ordre || 0) || a.nom.localeCompare(b.nom, "fr"); }
+  function estDirection() { return state.moi && state.moi.role === "direction"; }
+
+  /* ---------- démarrage ---------- */
+  async function demarrer() {
+    var db = null;
+    try {
+      if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId && window.firebase) {
+        firebase.initializeApp(window.FIREBASE_CONFIG);
+        db = firebase.firestore();
+      }
+    } catch (e) { db = null; }
+
+    if (!db) {
+      state.local = true; lsLire();
+      if (!state.acces.length) state.acces = [{ id: "direction", nom: "Direction", code: "", role: "direction" }];
+      ouvrirPorte(); return;
+    }
+
+    state.db = db;
+
+    db.collection("acces").onSnapshot(function (snap) {
+      state.acces = snap.docs.map(function (d) {
+        var v = d.data() || {};
+        return { id: d.id, nom: v.nom || d.id, code: String(v.code || ""), role: v.role === "direction" ? "direction" : "labo", ordre: Number(v.ordre) || 0 };
+      }).sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0) || a.nom.localeCompare(b.nom, "fr"); });
+      if (!state.moi) ouvrirPorte(); else { rendreEquipe(); }
+    }, function () { majSync(true); });
+
+    db.collection("produits").onSnapshot(function (snap) {
+      state.produits = snap.docs.map(function (d) {
+        var v = d.data() || {};
+        return { id: d.id, nom: v.nom || d.id, seuil: Number(v.seuil) || 0, ordre: Number(v.ordre) || 0, type: v.type === "a" ? "a" : "p", base: v.base || "" };
+      }).sort(trier);
+      if (state.moi) rendre();
+    }, function () { majSync(true); });
+
+    db.collection("jours").orderBy("d", "desc").limit(JOURS_CHARGES).onSnapshot(function (snap) {
+      var j = {};
+      snap.docs.forEach(function (d) { j[d.id] = (d.data() || {}).e || {}; });
+      state.jours = j;
+      if (state.moi) rendre();
+    }, function () { majSync(true); });
+  }
+
+  /* ---------- porte d'entrée ---------- */
+  function ouvrirPorte() {
+    var s = sessionLire();
+    if (s) {
+      var p = state.acces.find(function (x) { return x.id === s.id; });
+      if (p) { entrer(p); return; }
+    }
+    document.getElementById("app").hidden = true;
+    document.getElementById("porte").hidden = false;
+    portePersonne = null;
+    document.getElementById("codeZone").className = "code-zone hidden";
+    document.getElementById("porteIntro").textContent = state.acces.length ? "Qui travaille ?" : "Aucun accès n'a encore été créé.";
+    document.getElementById("porteErr").textContent = "";
+    document.getElementById("gens").innerHTML = state.acces.map(function (p) {
+      return '<button type="button" data-p="' + p.id + '">' + esc(p.nom) +
+        '<span class="role">' + (p.role === "direction" ? "direction" : "labo") + '</span></button>';
+    }).join("");
+  }
+
+  function entrer(p) {
+    state.moi = p;
+    sessionEcrire(p);
+    document.getElementById("porte").hidden = true;
+    document.getElementById("app").hidden = false;
+    document.getElementById("moi").textContent = p.nom;
+    var dir = p.role === "direction";
+    document.getElementById("tab-reglages").hidden = !dir;
+    document.getElementById("tab-equipe").hidden = !dir;
+    if (!dir) {
+      document.getElementById("v-reglages").hidden = true;
+      document.getElementById("v-equipe").hidden = true;
+    }
+    majSync();
+    rendre();
+  }
+
+  document.getElementById("gens").addEventListener("click", function (ev) {
+    var b = ev.target.closest("button[data-p]"); if (!b) return;
+    var p = state.acces.find(function (x) { return x.id === b.dataset.p; }); if (!p) return;
+    if (!p.code) { entrer(p); return; }
+    portePersonne = p;
+    document.getElementById("porteIntro").textContent = "Code de " + p.nom;
+    document.getElementById("gens").innerHTML = "";
+    document.getElementById("codeZone").className = "code-zone";
+    var i = document.getElementById("codeIn"); i.value = ""; i.focus();
+  });
+
+  document.getElementById("pad").innerHTML =
+    [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (n) { return '<button type="button" data-k="' + n + '">' + n + "</button>"; }).join("") +
+    '<button type="button" class="wide" data-k="back">Effacer</button>' +
+    '<button type="button" data-k="0">0</button>' +
+    '<button type="button" class="wide" data-k="ok">Entrer</button>';
+
+  function tenter() {
+    var i = document.getElementById("codeIn");
+    if (!portePersonne) return;
+    if (i.value === portePersonne.code) { entrer(portePersonne); return; }
+    document.getElementById("porteErr").textContent = "Code incorrect";
+    i.value = "";
+  }
+
+  document.getElementById("pad").addEventListener("click", function (ev) {
+    var b = ev.target.closest("button[data-k]"); if (!b) return;
+    var i = document.getElementById("codeIn"), k = b.dataset.k;
+    document.getElementById("porteErr").textContent = "";
+    if (k === "back") i.value = i.value.slice(0, -1);
+    else if (k === "ok") tenter();
+    else if (i.value.length < 6) { i.value += k; if (i.value.length === (portePersonne ? portePersonne.code.length : 0)) tenter(); }
+  });
+  document.getElementById("codeIn").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); tenter(); } });
+
+  document.getElementById("sortir").addEventListener("click", function () {
+    sessionEffacer(); state.moi = null; ouvrirPorte();
+  });
+
+  function majSync(err) {
+    var dot = document.getElementById("dot"), t = document.getElementById("syncTxt");
+    if (err) { dot.className = "dot off"; t.textContent = "· connexion perdue, rechargez la page"; return; }
+    if (state.local) { dot.className = "dot off"; t.textContent = "· hors ligne, saisies gardées sur cet appareil"; }
+    else { dot.className = "dot"; t.textContent = "· partagé avec les autres appareils"; }
+  }
+
+  /* ---------- écritures ---------- */
+  async function ajouterMouvement(produitId, type, qte) {
+    if (!qte) return;
+    var lignes = [{ p: produitId, t: type, q: qte }];
+    if (type === "p") {
+      var prod = state.produits.find(function (x) { return x.id === produitId; });
+      if (prod && prod.base && state.produits.some(function (x) { return x.id === prod.base; })) {
+        lignes.push({ p: prod.base, t: "s", q: qte });
+      }
+    }
+    var jour = today(), h = new Date().toTimeString().slice(0, 5);
+    var u = state.moi ? state.moi.nom : "";
+    var patch = {};
+    lignes.forEach(function (l) { l.h = h; l.u = u; patch[uid()] = l; });
+
+    if (state.local) {
+      if (!state.jours[jour]) state.jours[jour] = {};
+      Object.keys(patch).forEach(function (k) { state.jours[jour][k] = patch[k]; });
+      lsEcrire(); rendre(); return;
+    }
+    /* merge en profondeur : crée le jour s'il n'existe pas et ajoute les lignes
+       sans toucher à celles qu'une autre pâtissière vient d'écrire */
+    try { await state.db.doc("jours/" + jour).set({ d: jour, e: patch }, { merge: true }); }
+    catch (e) { alerter(e); }
+  }
+
+  async function enregistrerProduit(p) {
+    if (state.local) {
+      var i = state.produits.findIndex(function (x) { return x.id === p.id; });
+      if (i >= 0) state.produits[i] = p; else state.produits.push(p);
+      state.produits.sort(trier); lsEcrire(); rendre(); return;
+    }
+    try { await state.db.doc("produits/" + p.id).set({ nom: p.nom, seuil: p.seuil, ordre: p.ordre, type: p.type, base: p.base || "" }); }
+    catch (e) { alerter(e); }
+  }
+
+  async function supprimerProduit(id) {
+    if (state.local) { state.produits = state.produits.filter(function (x) { return x.id !== id; }); lsEcrire(); rendre(); return; }
+    try { await state.db.doc("produits/" + id).delete(); } catch (e) { alerter(e); }
+  }
+
+  async function enregistrerAcces(p) {
+    if (state.local) {
+      var i = state.acces.findIndex(function (x) { return x.id === p.id; });
+      if (i >= 0) state.acces[i] = p; else state.acces.push(p);
+      lsEcrire(); rendreEquipe(); return;
+    }
+    try { await state.db.doc("acces/" + p.id).set({ nom: p.nom, code: p.code, role: p.role, ordre: p.ordre || 0 }); }
+    catch (e) { alerter(e); }
+  }
+
+  async function supprimerAcces(id) {
+    if (state.local) { state.acces = state.acces.filter(function (x) { return x.id !== id; }); lsEcrire(); rendreEquipe(); return; }
+    try { await state.db.doc("acces/" + id).delete(); } catch (e) { alerter(e); }
+  }
+
+  function alerter(e) {
+    var c = (e && e.code) || "";
+    if (c.indexOf("permission") >= 0) window.alert("Écriture refusée par la base. Prévenez la direction.");
+    else if (c.indexOf("unavailable") >= 0) window.alert("Pas de réseau. La saisie repartira toute seule dès que la connexion revient.");
+    else window.alert("La saisie n'a pas été enregistrée. Vérifiez la connexion et recommencez.");
+  }
+
+  /* ---------- calculs ---------- */
+  function calculs() {
+    var stock = {}, jourCourant = {}, sorties7 = {};
+    var tj = today();
+    var limite = new Date(); limite.setDate(limite.getDate() - 7);
+    var isoLimite = iso(limite);
+    state.produits.forEach(function (p) { stock[p.id] = 0; jourCourant[p.id] = { e: 0, s: 0 }; sorties7[p.id] = 0; });
+
+    Object.keys(state.jours).forEach(function (date) {
+      var e = state.jours[date] || {};
+      Object.keys(e).forEach(function (k) {
+        var m = e[k];
+        if (!m || !(m.p in stock)) return;
+        var q = Number(m.q) || 0;
+        if (m.t === "p") stock[m.p] += q;
+        else if (m.t === "s") stock[m.p] -= q;
+        else if (m.t === "a") stock[m.p] += q;
+        if (date === tj) {
+          if (m.t === "p") jourCourant[m.p].e += q;
+          else if (m.t === "s") jourCourant[m.p].s += q;
+        }
+        if (m.t === "s" && date >= isoLimite && date !== tj) sorties7[m.p] += q;
+      });
+    });
+
+    var besoins = state.produits.map(function (p) {
+      var s = stock[p.id] || 0;
+      var moyenne = Math.round((sorties7[p.id] || 0) / 7 * 10) / 10;
+      var cible = Math.max(p.seuil || 0, Math.ceil(moyenne * 1.2));
+      return { p: p, stock: s, moyenne: moyenne, cible: cible, manque: Math.max(0, cible - s), rupture: s <= 0 };
+    });
+    return { stock: stock, jour: jourCourant, besoins: besoins };
+  }
+
+  function etat(v, seuil) { if (v <= 0) return "alert"; if (seuil > 0 && v < seuil) return "warn"; return "ok"; }
+
+  /* ---------- rendu ---------- */
+  function rendre() {
+    if (!state.moi) return;
+    document.getElementById("today").textContent = FMT.format(new Date());
+    var c = calculs();
+    rendreAFaire(c); rendreStock(c); rendreJournal(); rendreSemaine();
+    if (estDirection()) { rendreReglages(); rendreEquipe(); }
+  }
+
+  function ligneTache(b, verbe, stock) {
+    var cls = b.rupture ? "urgent" : "bientot";
+    var why = b.rupture ? "plus rien en vitrine" : "il en reste " + b.stock + " · seuil " + b.p.seuil;
+    if (b.moyenne > 0) why += " · " + String(b.moyenne).replace(".", ",") + "/jour vendus";
+    var manqueBase = "";
+    if (b.p.base) {
+      var base = state.produits.find(function (x) { return x.id === b.p.base; });
+      if (base) {
+        var dispo = stock[base.id] || 0;
+        if (dispo < b.manque) {
+          manqueBase = '<div class="why" style="color:var(--alert);font-weight:600">' +
+            (dispo <= 0 ? "plus de " + esc(base.nom).toLowerCase() : "seulement " + dispo + " en réserve") + '</div>';
+        }
+      }
+    }
+    return '<article class="task ' + cls + '">' +
+      '<div><div class="nom">' + esc(b.p.nom) + '</div><div class="why">' + why + '</div>' + manqueBase + '</div>' +
+      '<div class="qte">' + b.manque + '<small>' + (b.p.type === "a" ? "à commander" : "à produire") + '</small></div>' +
+      '<div class="go"><button class="done" data-done="' + b.p.id + '" data-q="' + b.manque + '">' + verbe + '</button></div>' +
+      '</article>';
+  }
+
+  function rendreAFaire(c) {
+    var prod = c.besoins.filter(function (b) { return b.p.type !== "a" && b.manque > 0; });
+    var achat = c.besoins.filter(function (b) { return b.p.type === "a" && b.manque > 0; });
+    var rang = function (a, b) { return (b.rupture - a.rupture) || (b.manque - a.manque); };
+    prod.sort(rang); achat.sort(rang);
+
+    var badge = document.getElementById("badge");
+    var n = prod.length + achat.length;
+    badge.hidden = n === 0; badge.textContent = n;
+
+    var bp = document.getElementById("bProduire");
+    if (!state.produits.length) {
+      bp.innerHTML = '<div class="calme"><h2>Aucune référence</h2><p>' +
+        (estDirection() ? "Ouvrez l'onglet Références pour ajouter vos pâtisseries." : "La direction doit d'abord créer les références.") + '</p></div>';
+      document.getElementById("bCommander").innerHTML = ""; return;
+    }
+    bp.innerHTML = !prod.length
+      ? '<div class="calme"><h2>Rien à produire</h2><p>Toutes les références du labo sont au-dessus de leur seuil.</p></div>'
+      : '<h2 class="sec">À produire</h2><p class="hint">' +
+        prod.filter(function (b) { return b.rupture; }).length + ' en rupture sur ' + prod.length + ' à rattraper</p>' +
+        prod.map(function (b) { return ligneTache(b, "C'est fait", c.stock); }).join("");
+
+    document.getElementById("bCommander").innerHTML = !achat.length ? "" :
+      '<h2 class="sec">À commander</h2><p class="hint">Matières et produits achetés, à faire livrer</p>' +
+      achat.map(function (b) { return ligneTache(b, "Reçu", c.stock); }).join("");
+  }
+
+  function rendreStock(c) {
+    var el = document.getElementById("list");
+    if (!state.produits.length) { el.innerHTML = ""; return; }
+    el.innerHTML = state.produits.map(function (p) {
+      var s = c.stock[p.id] || 0, j = c.jour[p.id] || { e: 0, s: 0 };
+      var cls = etat(s, p.seuil);
+      var pct = p.seuil > 0 ? Math.max(0, Math.min(100, Math.round(s / (p.seuil * 2) * 100))) : (s > 0 ? 100 : 0);
+      var achat = p.type === "a";
+      var base = p.base ? state.produits.find(function (x) { return x.id === p.base; }) : null;
+      return '<article class="row">' +
+        '<div><div class="nom">' + esc(p.nom) + (achat ? '<span class="tag">achetée</span>' : '') + '</div>' +
+        '<div class="meta">seuil ' + p.seuil + ' · aujourd\'hui +' + j.e + ' / −' + j.s +
+        (base ? ' · à partir de ' + esc(base.nom).toLowerCase() : '') + '</div></div>' +
+        '<div class="stock s-' + cls + '">' + s + '<small>en stock</small></div>' +
+        '<div class="gauge s-' + cls + '"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="acts">' +
+        '<button class="btn btn-p" data-a="p" data-id="' + p.id + '">' + (achat ? "Livré" : "Produit") + '</button>' +
+        '<button class="btn btn-s" data-a="s" data-id="' + p.id + '">Sorti</button>' +
+        '<button class="btn btn-q" data-a="a" data-id="' + p.id + '" aria-label="Corriger le stock de ' + esc(p.nom) + '">Corriger</button>' +
+        '</div></article>';
+    }).join("");
+  }
+
+  function rendreJournal() {
+    var e = state.jours[today()] || {};
+    var lignes = Object.keys(e).map(function (k) { return e[k]; })
+      .filter(function (m) { return m && state.produits.some(function (p) { return p.id === m.p; }); })
+      .sort(function (a, b) { return String(b.h || "").localeCompare(String(a.h || "")); })
+      .slice(0, 40);
+
+    document.getElementById("jvide").hidden = lignes.length > 0;
+    document.getElementById("jlist").innerHTML = lignes.map(function (m) {
+      var p = state.produits.find(function (x) { return x.id === m.p; });
+      var cls = m.t === "p" ? "plus" : m.t === "s" ? "moins" : "corr";
+      var signe = m.t === "p" ? "+" : m.t === "s" ? "−" : (m.q > 0 ? "+" : "");
+      return '<div class="jline"><span class="h">' + esc(m.h || "") + '</span>' +
+        '<span class="q ' + cls + '">' + signe + Math.abs(m.q) + '</span>' +
+        '<span class="n">' + esc(p.nom) + '</span>' +
+        '<span class="u">' + esc(m.u || "—") + '</span></div>';
+    }).join("");
+  }
+
+  function rendreSemaine() {
+    var tbl = document.getElementById("tbl");
+    if (!state.produits.length) { tbl.innerHTML = ""; return; }
+    var dates = [];
+    for (var i = 6; i >= 0; i--) { var d = new Date(); d.setDate(d.getDate() - i); dates.push(d); }
+    var head = "<thead><tr><th>Référence</th>" + dates.map(function (d) {
+      return "<th>" + FMT_COURT.format(d).replace(".", "") + "</th>";
+    }).join("") + "</tr></thead>";
+    var body = "<tbody>" + state.produits.map(function (p) {
+      return "<tr><td>" + esc(p.nom) + "</td>" + dates.map(function (d) {
+        var e = state.jours[iso(d)] || {}, entre = 0, sor = 0, cor = 0;
+        Object.keys(e).forEach(function (k) {
+          var m = e[k]; if (!m || m.p !== p.id) return;
+          var q = Number(m.q) || 0;
+          if (m.t === "p") entre += q; else if (m.t === "s") sor += q; else cor += q;
+        });
+        if (!entre && !sor && !cor) return '<td class="cell-0">·</td>';
+        var out = [];
+        if (entre) out.push('<span class="cell-p">+' + entre + "</span>");
+        if (sor) out.push('<span class="cell-s">−' + sor + "</span>");
+        if (cor) out.push('<span class="cell-0">' + (cor > 0 ? "+" : "") + cor + "</span>");
+        return "<td>" + out.join(" ") + "</td>";
+      }).join("") + "</tr>";
+    }).join("") + "</tbody>";
+    tbl.innerHTML = head + body;
+  }
+
+  function rendreReglages() {
+    var achetes = state.produits.filter(function (x) { return x.type === "a"; });
+    document.getElementById("sets").innerHTML = state.produits.map(function (p) {
+      /* le lien vers une matière achetée ne concerne presque aucune référence :
+         il ne s'affiche que là où il sert déjà, sinon derrière un lien discret */
+      var selBase = "";
+      if (p.type !== "a" && achetes.length) {
+        selBase = (p.base || p.montrerBase)
+          ? '<select data-f="base" aria-label="Fabriqué à partir de">' +
+            '<option value="">à partir de rien</option>' +
+            achetes.filter(function (x) { return x.id !== p.id; }).map(function (x) {
+              return '<option value="' + x.id + '"' + (p.base === x.id ? " selected" : "") + '>à partir de ' + esc(x.nom) + '</option>';
+            }).join("") + '</select>'
+          : '<button type="button" class="lier" data-lier="' + p.id + '">lier à une matière</button>';
+      }
+      return '<div class="setrow" data-id="' + p.id + '">' +
+        '<input type="text" value="' + esc(p.nom) + '" data-f="nom" aria-label="Nom">' +
+        '<select data-f="type" aria-label="Type">' +
+        '<option value="p"' + (p.type !== "a" ? " selected" : "") + '>Labo</option>' +
+        '<option value="a"' + (p.type === "a" ? " selected" : "") + '>Achetée</option></select>' +
+        selBase +
+        '<span class="lbl">seuil</span>' +
+        '<input type="number" value="' + p.seuil + '" min="0" data-f="seuil" aria-label="Seuil">' +
+        '<button class="del" data-del="' + p.id + '" aria-label="Supprimer ' + esc(p.nom) + '">×</button>' +
+        '</div>';
+    }).join("");
+  }
+
+  function rendreEquipe() {
+    var el = document.getElementById("gensAdmin"); if (!el || !estDirection()) return;
+    el.innerHTML = state.acces.map(function (p) {
+      return '<div class="setrow" data-id="' + p.id + '">' +
+        '<input type="text" value="' + esc(p.nom) + '" data-g="nom" aria-label="Prénom">' +
+        '<select data-g="role" aria-label="Rôle">' +
+        '<option value="labo"' + (p.role !== "direction" ? " selected" : "") + '>Labo</option>' +
+        '<option value="direction"' + (p.role === "direction" ? " selected" : "") + '>Direction</option></select>' +
+        '<span class="lbl">code</span>' +
+        '<input type="text" class="mono" value="' + esc(p.code) + '" data-g="code" inputmode="numeric" maxlength="6" size="6" aria-label="Code de ' + esc(p.nom) + '" style="width:88px">' +
+        (state.moi && state.moi.id === p.id ? '<span class="lbl">vous</span>' :
+          '<button class="del" data-delg="' + p.id + '" aria-label="Supprimer l\'accès de ' + esc(p.nom) + '">×</button>') +
+        '</div>';
+    }).join("");
+  }
+
+  /* ---------- interactions ---------- */
+  var onglets = [["tab-faire", "v-faire"], ["tab-stock", "v-stock"], ["tab-semaine", "v-semaine"], ["tab-reglages", "v-reglages"], ["tab-equipe", "v-equipe"]];
+  onglets.forEach(function (o) {
+    document.getElementById(o[0]).addEventListener("click", function () {
+      onglets.forEach(function (x) {
+        var sel = x[0] === o[0];
+        document.getElementById(x[0]).setAttribute("aria-selected", sel ? "true" : "false");
+        document.getElementById(x[1]).hidden = !sel;
+      });
+    });
+  });
+
+  var dlg = document.getElementById("dlg");
+  var CHIPS = { p: [1, 2, 4, 6, 12, 24], s: [1, 2, 3, 4, 6, 12] };
+
+  function ouvrirSaisie(p, mode, valeurDepart) {
+    var stockActuel = calculs().stock[p.id] || 0;
+    dlgCtx = { produit: p, mode: mode, stock: stockActuel };
+    var achat = p.type === "a";
+    document.getElementById("dlgTitle").textContent = p.nom;
+    document.getElementById("dlgSub").textContent =
+      mode === "p" ? (achat ? "Combien en avez-vous reçu ?" : "Combien en avez-vous produit ?")
+        : mode === "s" ? "Combien sont sortis ? (stock : " + stockActuel + ")"
+          : "Combien en reste-t-il réellement ?";
+    var q = document.getElementById("qty");
+    q.value = mode === "a" ? stockActuel : (valeurDepart || 0);
+    document.getElementById("chips").innerHTML =
+      (mode === "a" ? [] : CHIPS[mode]).map(function (n) {
+        return '<button type="button" class="chip" data-n="' + n + '">+' + n + "</button>";
+      }).join("");
+    dlg.showModal(); q.focus(); q.select();
+  }
+
+  document.getElementById("list").addEventListener("click", function (ev) {
+    var b = ev.target.closest("button[data-a]"); if (!b) return;
+    var p = state.produits.find(function (x) { return x.id === b.dataset.id; }); if (!p) return;
+    ouvrirSaisie(p, b.dataset.a, 0);
+  });
+
+  document.getElementById("v-faire").addEventListener("click", function (ev) {
+    var b = ev.target.closest("button[data-done]"); if (!b) return;
+    var p = state.produits.find(function (x) { return x.id === b.dataset.done; }); if (!p) return;
+    ouvrirSaisie(p, "p", Number(b.dataset.q) || 0);
+  });
+
+  document.getElementById("chips").addEventListener("click", function (ev) {
+    var c = ev.target.closest(".chip"); if (!c) return;
+    var q = document.getElementById("qty");
+    q.value = (Number(q.value) || 0) + Number(c.dataset.n);
+  });
+
+  document.getElementById("dlgCancel").addEventListener("click", function () { dlg.close(); dlgCtx = null; });
+
+  document.getElementById("dlgOk").addEventListener("click", async function () {
+    if (!dlgCtx) return;
+    var v = Math.max(0, Math.round(Number(document.getElementById("qty").value) || 0));
+    var ctx = dlgCtx; dlg.close(); dlgCtx = null;
+    if (ctx.mode === "a") {
+      var delta = v - ctx.stock;
+      if (delta !== 0) await ajouterMouvement(ctx.produit.id, "a", delta);
+    } else if (v > 0) await ajouterMouvement(ctx.produit.id, ctx.mode, v);
+  });
+
+  document.getElementById("sets").addEventListener("change", function (ev) {
+    var f = ev.target.dataset.f; if (!f) return;
+    var row = ev.target.closest(".setrow");
+    var p = state.produits.find(function (x) { return x.id === row.dataset.id; }); if (!p) return;
+    if (f === "nom") { var n = ev.target.value.trim(); if (!n) { ev.target.value = p.nom; return; } p.nom = n; }
+    else if (f === "type") { p.type = ev.target.value === "a" ? "a" : "p"; if (p.type === "a") p.base = ""; }
+    else if (f === "base") p.base = ev.target.value;
+    else p.seuil = Math.max(0, Math.round(Number(ev.target.value) || 0));
+    enregistrerProduit(p);
+  });
+
+  document.getElementById("sets").addEventListener("click", function (ev) {
+    var l = ev.target.closest("[data-lier]");
+    if (l) {
+      var pl = state.produits.find(function (x) { return x.id === l.dataset.lier; });
+      if (pl) { pl.montrerBase = true; rendreReglages(); }
+      return;
+    }
+    var b = ev.target.closest("[data-del]"); if (!b) return;
+    var p = state.produits.find(function (x) { return x.id === b.dataset.del; }); if (!p) return;
+    if (window.confirm("Supprimer « " + p.nom + " » de la liste ?")) supprimerProduit(p.id);
+  });
+
+  document.getElementById("gensAdmin").addEventListener("change", function (ev) {
+    var f = ev.target.dataset.g; if (!f) return;
+    var row = ev.target.closest(".setrow");
+    var p = state.acces.find(function (x) { return x.id === row.dataset.id; }); if (!p) return;
+    if (f === "nom") { var n = ev.target.value.trim(); if (!n) { ev.target.value = p.nom; return; } p.nom = n; }
+    else if (f === "role") {
+      if (p.role === "direction" && ev.target.value !== "direction" &&
+          state.acces.filter(function (x) { return x.role === "direction"; }).length < 2) {
+        window.alert("Gardez au moins une personne en direction, sinon plus personne ne pourra gérer l'appli.");
+        ev.target.value = "direction"; return;
+      }
+      p.role = ev.target.value === "direction" ? "direction" : "labo";
+    }
+    else p.code = ev.target.value.replace(/\D/g, "").slice(0, 6);
+    enregistrerAcces(p);
+    if (state.moi && state.moi.id === p.id) { state.moi = p; sessionEcrire(p); document.getElementById("moi").textContent = p.nom; }
+  });
+
+  document.getElementById("gensAdmin").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-delg]"); if (!b) return;
+    var p = state.acces.find(function (x) { return x.id === b.dataset.delg; }); if (!p) return;
+    if (p.role === "direction" && state.acces.filter(function (x) { return x.role === "direction"; }).length < 2) {
+      window.alert("Gardez au moins une personne en direction."); return;
+    }
+    if (window.confirm("Retirer l'accès de « " + p.nom + " » ?")) supprimerAcces(p.id);
+  });
+
+  document.getElementById("addGens").addEventListener("click", function () {
+    var nom = document.getElementById("newGens").value.trim();
+    if (!nom) return;
+    var role = document.getElementById("newRole").value === "direction" ? "direction" : "labo";
+    var base = slug(nom), id = base, n = 2;
+    while (state.acces.some(function (x) { return x.id === id; })) { id = base + "-" + n++; }
+    var code = String(Math.floor(1000 + Math.random() * 9000));
+    var ordre = state.acces.length ? Math.max.apply(null, state.acces.map(function (x) { return x.ordre || 0; })) + 10 : 10;
+    enregistrerAcces({ id: id, nom: nom, code: code, role: role, ordre: ordre });
+    document.getElementById("newGens").value = "";
+    window.alert("Accès créé pour " + nom + ".\nSon code : " + code + "\n\nDonnez-le-lui de vive voix. Il est modifiable dans la liste.");
+  });
+
+  function ajouter() {
+    var nom = document.getElementById("newName").value.trim();
+    if (!nom) return;
+    var seuil = Math.max(0, Math.round(Number(document.getElementById("newSeuil").value) || 0));
+    var type = document.getElementById("newType").value === "a" ? "a" : "p";
+    var base = slug(nom), id = base, n = 2;
+    while (state.produits.some(function (x) { return x.id === id; })) { id = base + "-" + n++; }
+    var ordre = state.produits.length ? Math.max.apply(null, state.produits.map(function (x) { return x.ordre || 0; })) + 10 : 10;
+    enregistrerProduit({ id: id, nom: nom, seuil: seuil, ordre: ordre, type: type, base: "" });
+    document.getElementById("newName").value = "";
+    document.getElementById("newName").focus();
+  }
+  document.getElementById("addBtn").addEventListener("click", ajouter);
+  document.getElementById("newName").addEventListener("keydown", function (e) { if (e.key === "Enter") ajouter(); });
+
+  demarrer();
+})();
+</script>
+</body>
+</html>

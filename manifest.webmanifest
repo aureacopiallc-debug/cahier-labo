@@ -1,0 +1,17 @@
+{
+  "name": "Cahier du Labo",
+  "short_name": "Cahier",
+  "description": "Stock et plan de production des pâtisseries",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F5F6",
+  "theme_color": "#F1F5F6",
+  "lang": "fr",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
